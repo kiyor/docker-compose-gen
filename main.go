@@ -6,7 +6,7 @@
 
 * Creation Date : 10-17-2017
 
-* Last Modified : Wed 18 Oct 2017 01:30:59 AM UTC
+* Last Modified : Wed 25 Oct 2017 09:58:24 PM UTC
 
 * Created By : Kiyor
 
@@ -28,32 +28,64 @@ import (
 var (
 	flagPort       flagSliceString
 	flagAddHost    flagSliceString
+	flagMount      flagSliceString
+	flagCapAdd     flagSliceString
 	composeVersion = flag.String("version", "3.3", "docker compose version")
+	beego          = flag.Bool("beego", false, "beego app")
 )
 
 func init() {
 	flag.Var(&flagPort, "p", "docker port mount")
 	flag.Var(&flagAddHost, "add-host", "add host to hosts file")
+	flag.Var(&flagMount, "v", "docker volume mount")
+	flag.Var(&flagMount, "cap_add", "docker cap_add")
 	flag.Parse()
 }
 
 func main() {
+	var image, command string
+	if len(flag.Args()) > 0 {
+		image = flag.Args()[0]
+		if len(flag.Args()) > 1 {
+			command = strings.Join(flag.Args()[1:], " ")
+		}
+	}
 	d := data{
 		Version:      *composeVersion,
 		Name:         baseName(),
 		Dir:          goPwd(),
 		ContinerPort: getContinerPorts(flagPort),
 		MountPort:    optimizeMountPort(flagPort),
+		MountDisk:    getContinerMounts(flagMount),
 		ExtraHosts:   flagAddHost,
+		CapAdd:       flagCapAdd,
+		Image:        image,
+		Command:      command,
 	}
-	err := write("Dockerfile", DOCKERFILE, d)
+	dockerfile := DOCKERFILE
+	if *beego || isBeego() {
+		dockerfile = DOCKERFILE_BEE
+	}
+	if len(image) == 0 {
+		err := write("Dockerfile", dockerfile, d)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	err := write("docker-compose.yml", DOCKERCOMPOSE, d)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = write("docker-compose.yml", DOCKERCOMPOSE, d)
-	if err != nil {
-		log.Fatal(err)
+}
+
+func isBeego() bool {
+	dirs := []string{"conf", "controllers", "models", "routers", "static", "views"}
+	for _, name := range dirs {
+		if _, err := os.Stat(name); err != nil {
+			return false
+		}
 	}
+	return true
 }
 
 func getContinerPorts(ps flagSliceString) []string {
@@ -72,6 +104,19 @@ func getContinerPort(p string) string {
 		}
 	}
 	return rt
+}
+func getContinerMounts(ps flagSliceString) []string {
+	var res []string
+	for _, v := range ps {
+		res = append(res, getContinerMount(v))
+	}
+	return res
+}
+func getContinerMount(p string) string {
+	if strings.Contains(p, ":") {
+		return p
+	}
+	return p + ":" + p
 }
 
 func optimizeMountPort(ps flagSliceString) []string {
@@ -92,7 +137,11 @@ type data struct {
 	Dir          string
 	ContinerPort []string
 	MountPort    []string
+	MountDisk    []string
 	ExtraHosts   []string
+	CapAdd       []string
+	Image        string
+	Command      string
 }
 
 func write(file, tpl string, d interface{}, id ...int) error {
@@ -109,7 +158,9 @@ func write(file, tpl string, d interface{}, id ...int) error {
 	if err != nil {
 		return err
 	}
-	t, err := template.New(filename).Parse(tpl)
+	t, err := template.New(filename).Funcs(template.FuncMap{
+		"split": split,
+	}).Parse(tpl)
 	if err != nil {
 		return err
 	}
@@ -123,7 +174,7 @@ func write(file, tpl string, d interface{}, id ...int) error {
 
 func goPwd() string {
 	p := strings.Split(pwd(), "/src/")
-	if len(p) > 0 {
+	if len(p) > 1 {
 		return fmt.Sprintf("/go/src/%s", p[1])
 	}
 	return ""
