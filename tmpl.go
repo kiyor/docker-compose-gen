@@ -6,7 +6,7 @@
 
 * Creation Date : 10-17-2017
 
-* Last Modified : Mon 30 Oct 2017 10:33:33 PM UTC
+* Last Modified : Sat 09 Dec 2017 01:30:59 AM UTC
 
 * Created By : Kiyor
 
@@ -62,7 +62,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile{{end}}{{if .Command}}
-    command: {{.Command}}{{end}}{{if .MountPort}}
+    command: {{.Command}}{{end}}{{if .Env}}
+    environment:{{range .Env}}
+      - "{{.}}"{{end}}{{end}}{{if .MountPort}}
     ports:{{range .MountPort}}
       - "{{.}}"{{end}}{{end}}{{if .MountDisk}}
     volumes:{{range .MountDisk}}

@@ -6,7 +6,7 @@
 
 * Creation Date : 10-17-2017
 
-* Last Modified : Wed 25 Oct 2017 09:58:24 PM UTC
+* Last Modified : Sat 09 Dec 2017 01:32:43 AM UTC
 
 * Created By : Kiyor
 
@@ -30,15 +30,31 @@ var (
 	flagAddHost    flagSliceString
 	flagMount      flagSliceString
 	flagCapAdd     flagSliceString
-	composeVersion = flag.String("version", "3.3", "docker compose version")
+	flagEnv        flagSliceString
+	composeVersion = flag.String("version", "3.4", "docker compose version")
 	beego          = flag.Bool("beego", false, "beego app")
 )
+
+type data struct {
+	Version      string
+	Name         string
+	Dir          string
+	ContinerPort []string
+	MountPort    []string
+	MountDisk    []string
+	ExtraHosts   []string
+	CapAdd       []string
+	Env          []string
+	Image        string
+	Command      string
+}
 
 func init() {
 	flag.Var(&flagPort, "p", "docker port mount")
 	flag.Var(&flagAddHost, "add-host", "add host to hosts file")
 	flag.Var(&flagMount, "v", "docker volume mount")
-	flag.Var(&flagMount, "cap_add", "docker cap_add")
+	flag.Var(&flagCapAdd, "cap_add", "docker cap_add")
+	flag.Var(&flagEnv, "e", "docker env")
 	flag.Parse()
 }
 
@@ -59,6 +75,7 @@ func main() {
 		MountDisk:    getContinerMounts(flagMount),
 		ExtraHosts:   flagAddHost,
 		CapAdd:       flagCapAdd,
+		Env:          flagEnv,
 		Image:        image,
 		Command:      command,
 	}
@@ -129,19 +146,6 @@ func optimizeMountPort(ps flagSliceString) []string {
 		}
 	}
 	return res
-}
-
-type data struct {
-	Version      string
-	Name         string
-	Dir          string
-	ContinerPort []string
-	MountPort    []string
-	MountDisk    []string
-	ExtraHosts   []string
-	CapAdd       []string
-	Image        string
-	Command      string
 }
 
 func write(file, tpl string, d interface{}, id ...int) error {
