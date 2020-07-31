@@ -23,16 +23,16 @@ const (
 WORKDIR {{.Dir}}
 COPY . .
 RUN go get && \
-    CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o {{.Name}} .
+    CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .
 
 FROM alpine
 RUN apk --no-cache add ca-certificates
 WORKDIR /root
 COPY . .
-COPY --from=builder {{.Dir}}/{{.Name}} .
+COPY --from=builder {{.Dir}}/app .
 {{if .ContinerPort}}EXPOSE {{range .ContinerPort}}{{.}} {{end}}{{end}}
 {{if .MountDisk}}VOLUME [{{range $k, $v := .MountDisk}}"{{if $k}},{{end}}{{index ( split $v ":" ) 1}}"{{end}}]{{end}}
-ENTRYPOINT ["/root/{{.Name}}"]
+ENTRYPOINT ["/root/app"]
 `
 	DOCKERFILE_BEE = `FROM golang as builder
 WORKDIR {{.Dir}}
@@ -41,7 +41,7 @@ COPY models models
 COPY routers routers
 COPY *.go ./
 RUN go get && \
-    CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o {{.Name}} .
+    CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .
 
 FROM alpine
 RUN apk --no-cache add ca-certificates
@@ -49,10 +49,10 @@ WORKDIR /root
 COPY conf conf
 COPY static static
 COPY views views
-COPY --from=builder {{.Dir}}/{{.Name}} .
+COPY --from=builder {{.Dir}}/app .
 {{if .ContinerPort}}EXPOSE {{range .ContinerPort}}{{.}} {{end}}{{end}}
 {{if .MountDisk}}VOLUME [{{range $k, $v := .MountDisk}}"{{if $k}},{{end}}{{index ( split $v ":" ) 1}}"{{end}}]{{end}}
-ENTRYPOINT ["/root/{{.Name}}"]
+ENTRYPOINT ["/root/app"]
 `
 	DOCKERCOMPOSE = `version: '{{.Version}}'
 services:
